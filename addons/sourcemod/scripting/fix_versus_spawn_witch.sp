@@ -108,8 +108,7 @@ public Action DelayWitchSpawn(Handle hTimer, int iWitchId)
 		return Plugin_Continue;
 	}
 
-	if (InSecondHalfOfRound())
-	{
+	if (InSecondHalfOfRound()) {
 		TeleportEntity(iWitchId, g_vWitchOrigin, g_vWitchRotation, NULL_VECTOR);
 	}
 
