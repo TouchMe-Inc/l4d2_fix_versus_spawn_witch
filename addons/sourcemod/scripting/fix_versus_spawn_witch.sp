@@ -10,7 +10,7 @@ public Plugin myinfo =
 	name = "FixVersusSpawnWitch",
 	author = "TouchMe",
 	description = "The plugin corrects the position of the witch in versus mode",
-	version = "build_0001",
+	version = "build_0002",
 	url = "https://github.com/TouchMe-Inc/l4d2_fix_versus_spawn_witch"
 };
 
@@ -22,7 +22,8 @@ public Plugin myinfo =
 
 // Vars
 bool
-	g_bGamemodeAvailable = false; /**< Only versus mode */
+	g_bGamemodeAvailable = false, /**< Only versus mode */
+	g_bWitchSpawnedInFirstHalfOfRound = false;
 
 float
 	g_vWitchOrigin[3],
@@ -86,6 +87,10 @@ public void OnConfigsExecuted()
 	g_bGamemodeAvailable = IsVersusMode(sGameMode);
 }
 
+public void OnMapStart(){
+	g_bWitchSpawnedInFirstHalfOfRound = false;
+}
+
 /**
  * Witch spaned.
  */
@@ -108,13 +113,17 @@ public Action DelayWitchSpawn(Handle hTimer, int iWitchId)
 		return Plugin_Continue;
 	}
 
-	if (InSecondHalfOfRound()) {
-		TeleportEntity(iWitchId, g_vWitchOrigin, g_vWitchRotation, NULL_VECTOR);
-	}
+	bool bIsSecondHalfOfRound = InSecondHalfOfRound();
 
-	else {
+	if (!bIsSecondHalfOfRound)
+	{
 		GetEntPropVector(iWitchId, Prop_Send, "m_angRotation", g_vWitchRotation);
 		GetEntPropVector(iWitchId, Prop_Send, "m_vecOrigin", g_vWitchOrigin);
+		g_bWitchSpawnedInFirstHalfOfRound = true;
+	}
+
+	if (bIsSecondHalfOfRound && g_bWitchSpawnedInFirstHalfOfRound) {
+		TeleportEntity(iWitchId, g_vWitchOrigin, g_vWitchRotation, NULL_VECTOR);
 	}
 
 	return Plugin_Continue;
