@@ -24,6 +24,10 @@ public Plugin myinfo =
 bool
 	g_bGamemodeAvailable = false;
 
+float
+	g_vWitchOrigin[3];
+
+// Cvars
 ConVar
 	g_cvGameMode = null;
 
@@ -69,17 +73,28 @@ public Action Event_WitchSpawn(Event event, char[] sEventName, bool bDontBroadca
 
 	int iWitchId = event.GetInt("witchid");
 
-	static float vWitch[3];
+	CreateTimer(0.1, DelayWitchSpawn, iWitchId, TIMER_FLAG_NO_MAPCHANGE);
+
+	return Plugin_Continue;
+}
+
+public Action DelayWitchSpawn(Handle hTimer, int iWitchId)
+{
+	if (!IsWitch(iWitchId)) {
+		return Plugin_Continue;
+	}
+
 	if (!InSecondHalfOfRound()) {
-		GetClientAbsOrigin(iWitchId, vWitch);
-		CPrintToChatAll("Первый спавн ведьмы %f %f %f!", vWitch[0], vWitch[1], vWitch[2]);
+		GetEntPropVector(iWitchId, Prop_Send, "m_vecOrigin", g_vWitchOrigin);
+		CPrintToChatAll("Первый спавн ведьмы %f %f %f!", g_vWitchOrigin[0], g_vWitchOrigin[1], g_vWitchOrigin[2]);
 	} else {
-		TeleportEntity(iWitchId, vWitch, NULL_VECTOR, NULL_VECTOR);
-		CPrintToChatAll("Второй спавн ведьмы %f %f %f!", vWitch[0], vWitch[1], vWitch[2]);
+		TeleportEntity(iWitchId, g_vWitchOrigin, NULL_VECTOR, NULL_VECTOR);
+		CPrintToChatAll("Второй спавн ведьмы %f %f %f!", g_vWitchOrigin[0], g_vWitchOrigin[1], g_vWitchOrigin[2]);
 	}
 
 	return Plugin_Continue;
 }
+
 /**
  * Checks if the current round is the second.
  *
@@ -98,4 +113,18 @@ bool InSecondHalfOfRound() {
  */
 bool IsVersusMode(const char[] sGameMode) {
 	return (StrEqual(sGameMode, GAMEMODE_VERSUS, false) || StrEqual(sGameMode, GAMEMODE_VERSUS_REALISM, false));
+}
+
+bool IsWitch(int iWitchId)
+{
+	if (iWitchId > 0 && IsValidEdict(iWitchId) && IsValidEntity(iWitchId))
+	{
+		char classname[32];
+
+		if (GetEdictClassname(iWitchId, classname, sizeof(classname)) && StrEqual(classname, "witch")) {
+			return true;
+		}
+	}
+
+	return false;
 }
