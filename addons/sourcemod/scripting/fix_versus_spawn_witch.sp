@@ -21,17 +21,42 @@ public Plugin myinfo =
 #define GAMEMODE_VERSUS_REALISM "mutation12"
 
 
+// Vars
 bool
-	g_bGamemodeAvailable = false;
+	g_bGamemodeAvailable = false; /**< Only versus mode */
 
 float
-	g_vWitchOrigin[3];
+	g_vWitchOrigin[3],
+	g_vWitchRotation[3];
 
-// Cvars
 ConVar
-	g_cvGameMode = null;
+	g_cvGameMode = null; /**< mp_gamemode */
 
+/**
+ * Called before OnPluginStart.
+ *
+ * @param myself      Handle to the plugin
+ * @param bLate       Whether or not the plugin was loaded "late" (after map load)
+ * @param sErr        Error message buffer in case load failed
+ * @param iErrLen     Maximum number of characters for error message buffer
+ * @return            APLRes_Success | APLRes_SilentFailure
+ */
+public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] sErr, int iErrLen)
+{
+	EngineVersion engine = GetEngineVersion();
 
+	if (engine != Engine_Left4Dead2) {
+		strcopy(sErr, iErrLen, "Plugin only supports Left 4 Dead 2");
+		return APLRes_SilentFailure;
+	}
+
+	return APLRes_Success;
+}
+
+/**
+ * Called when the plugin is fully initialized and all known external
+ * references are resolved.
+ */
 public void OnPluginStart()
 {
 	(g_cvGameMode = FindConVar("mp_gamemode")).AddChangeHook(OnGamemodeChanged);
@@ -63,7 +88,7 @@ public void OnConfigsExecuted()
 }
 
 /**
- * Surivivor Killed Witch.
+ * Witch spaned.
  */
 public Action Event_WitchSpawn(Event event, char[] sEventName, bool bDontBroadcast)
 {
@@ -85,10 +110,11 @@ public Action DelayWitchSpawn(Handle hTimer, int iWitchId)
 	}
 
 	if (!InSecondHalfOfRound()) {
+		GetEntPropVector(iWitchId, Prop_Send, "m_angRotation", g_vWitchRotation);
 		GetEntPropVector(iWitchId, Prop_Send, "m_vecOrigin", g_vWitchOrigin);
 		CPrintToChatAll("Первый спавн ведьмы %f %f %f!", g_vWitchOrigin[0], g_vWitchOrigin[1], g_vWitchOrigin[2]);
 	} else {
-		TeleportEntity(iWitchId, g_vWitchOrigin, NULL_VECTOR, NULL_VECTOR);
+		TeleportEntity(iWitchId, g_vWitchOrigin, g_vWitchRotation, NULL_VECTOR);
 		CPrintToChatAll("Второй спавн ведьмы %f %f %f!", g_vWitchOrigin[0], g_vWitchOrigin[1], g_vWitchOrigin[2]);
 	}
 
