@@ -3,7 +3,6 @@
 
 #include <sourcemod>
 #include <sdktools>
-#include <colors>
 
 
 public Plugin myinfo =
@@ -11,8 +10,8 @@ public Plugin myinfo =
 	name = "FixVersusSpawnWitch",
 	author = "TouchMe",
 	description = "The plugin corrects the position of the witch in versus mode",
-	version = "build_0000",
-	url = "https://github.com/TouchMe-Inc/l4d2_versus_spawn_witch"
+	version = "build_0001",
+	url = "https://github.com/TouchMe-Inc/l4d2_fix_versus_spawn_witch"
 };
 
 
@@ -109,13 +108,14 @@ public Action DelayWitchSpawn(Handle hTimer, int iWitchId)
 		return Plugin_Continue;
 	}
 
-	if (!InSecondHalfOfRound()) {
+	if (InSecondHalfOfRound())
+	{
+		TeleportEntity(iWitchId, g_vWitchOrigin, g_vWitchRotation, NULL_VECTOR);
+	}
+
+	else {
 		GetEntPropVector(iWitchId, Prop_Send, "m_angRotation", g_vWitchRotation);
 		GetEntPropVector(iWitchId, Prop_Send, "m_vecOrigin", g_vWitchOrigin);
-		CPrintToChatAll("Первый спавн ведьмы %f %f %f!", g_vWitchOrigin[0], g_vWitchOrigin[1], g_vWitchOrigin[2]);
-	} else {
-		TeleportEntity(iWitchId, g_vWitchOrigin, g_vWitchRotation, NULL_VECTOR);
-		CPrintToChatAll("Второй спавн ведьмы %f %f %f!", g_vWitchOrigin[0], g_vWitchOrigin[1], g_vWitchOrigin[2]);
 	}
 
 	return Plugin_Continue;
