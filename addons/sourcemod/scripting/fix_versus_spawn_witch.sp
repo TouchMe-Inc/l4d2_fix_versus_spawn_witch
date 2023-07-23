@@ -92,7 +92,7 @@ public void OnMapStart(){
 }
 
 /**
- * Witch spaned.
+ * Witch spawned.
  */
 public Action Event_WitchSpawn(Event event, char[] sEventName, bool bDontBroadcast)
 {
@@ -143,12 +143,19 @@ bool InSecondHalfOfRound() {
  *
  * @param sGameMode         A string containing the name of the game mode.
  *
- * @return                  Returns true if verus, otherwise false.
+ * @return                  Returns true if versus, otherwise false.
  */
 bool IsVersusMode(const char[] sGameMode) {
 	return (StrEqual(sGameMode, GAMEMODE_VERSUS, false) || StrEqual(sGameMode, GAMEMODE_VERSUS_REALISM, false));
 }
 
+/**
+ * Is entity witch.
+ *
+ * @param iWitchId          Witch Index.
+ *
+ * @return                  Returns true if valid witch, otherwise false.
+ */
 bool IsWitch(int iWitchId)
 {
 	if (iWitchId > 0 && IsValidEdict(iWitchId) && IsValidEntity(iWitchId))
