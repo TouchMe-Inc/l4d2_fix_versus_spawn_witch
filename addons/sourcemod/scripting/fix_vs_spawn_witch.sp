@@ -11,7 +11,7 @@ public Plugin myinfo =
 	author = "TouchMe",
 	description = "The plugin corrects the position of the witch in versus mode",
 	version = "build_0002",
-	url = "https://github.com/TouchMe-Inc/l4d2_fix_versus_spawn_witch"
+	url = "https://github.com/TouchMe-Inc/l4d2_fix_vs_spawn_witch"
 };
 
 
