@@ -2,6 +2,7 @@
 #pragma newdecls               required
 
 #include <sourcemod>
+#include <sdkhooks>
 #include <sdktools>
 
 
@@ -9,28 +10,24 @@ public Plugin myinfo =
 {
 	name = "FixVersusSpawnWitch",
 	author = "TouchMe",
-	description = "The plugin corrects the position of the witch in versus mode",
-	version = "build_0002",
+	description = "The plugin corrects the position of the witch",
+	version = "build_0003",
 	url = "https://github.com/TouchMe-Inc/l4d2_fix_vs_spawn_witch"
 };
 
 
-// Gamemode
-#define GAMEMODE_VERSUS         "versus"
-#define GAMEMODE_VERSUS_REALISM "mutation12"
+#define ssClassName_WITCH "witch"
 
 
-// Vars
-bool
-	g_bGamemodeAvailable = false, /**< Only versus mode */
-	g_bWitchSpawnedInFirstHalfOfRound = false;
+Handle g_hWitchInfo = null;
 
-float
-	g_vWitchOrigin[3],
-	g_vWitchRotation[3];
+int g_iWitchIndex = -1;
 
-ConVar
-	g_cvGameMode = null; /**< mp_gamemode */
+enum struct E_WitchInfo
+{
+	float vOrigin[3];
+	float vRotation[3];
+}
 
 /**
  * Called before OnPluginStart.
@@ -43,9 +40,8 @@ ConVar
  */
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] sErr, int iErrLen)
 {
-	EngineVersion engine = GetEngineVersion();
-
-	if (engine != Engine_Left4Dead2) {
+	if (GetEngineVersion() != Engine_Left4Dead2)
+	{
 		strcopy(sErr, iErrLen, "Plugin only supports Left 4 Dead 2");
 		return APLRes_SilentFailure;
 	}
@@ -53,78 +49,78 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] sErr, int iErrLen
 	return APLRes_Success;
 }
 
-/**
- * Called when the plugin is fully initialized and all known external
- * references are resolved.
- */
 public void OnPluginStart()
 {
-	(g_cvGameMode = FindConVar("mp_gamemode")).AddChangeHook(OnGamemodeChanged);
-
-	HookEvent("witch_spawn", Event_WitchSpawn);
+	g_hWitchInfo = CreateArray(sizeof(E_WitchInfo));
 }
 
-/**
- * Called when a console variable value is changed.
- *
- * @param convar            Ignored.
- * @param sOldGameMode      Ignored.
- * @param sNewGameMode      String containing new gamemode.
- */
-public void OnGamemodeChanged(ConVar hConVar, const char[] sOldGameMode, const char[] sNewGameMode) {
-	g_bGamemodeAvailable = IsVersusMode(sNewGameMode);
-}
-
-/**
- * Called when the map has loaded, servercfgfile (server.cfg) has been executed, and all
- * plugin configs are done executing. This will always be called once and only once per map.
- * It will be called after OnMapStart().
-*/
-public void OnConfigsExecuted()
+public void OnEntityCreated(int iEnt, const char[] ssClassName)
 {
-	char sGameMode[16];
-	GetConVarString(g_cvGameMode, sGameMode, sizeof(sGameMode));
-	g_bGamemodeAvailable = IsVersusMode(sGameMode);
-}
+	if (iEnt > MaxClients && IsValidEntity(iEnt) && StrEqual(ssClassName, ssClassName_WITCH))
+	{
+		SDKHook(iEnt, SDKHook_OnTakeDamage, OnTakePropDamage);
 
-public void OnMapStart(){
-	g_bWitchSpawnedInFirstHalfOfRound = false;
-}
-
-/**
- * Witch spawned.
- */
-public Action Event_WitchSpawn(Event event, char[] sEventName, bool bDontBroadcast)
-{
-	if (g_bGamemodeAvailable == false) {
-		return Plugin_Continue;
+		CreateTimer(0.1, OnWitchCreated, iEnt, TIMER_FLAG_NO_MAPCHANGE);
 	}
+}
 
-	int iWitchId = event.GetInt("witchid");
-
-	CreateTimer(0.1, DelayWitchSpawn, iWitchId, TIMER_FLAG_NO_MAPCHANGE);
+Action OnTakePropDamage(int iVictim, int &iAttacker, int &iInflictor, float &fDamage, int &iDamageType)
+{
+	if (iDamageType & DMG_BURN) {
+		return Plugin_Handled;
+	}
 
 	return Plugin_Continue;
 }
 
-public Action DelayWitchSpawn(Handle hTimer, int iWitchId)
+public void OnMapStart()
 {
-	if (!IsWitch(iWitchId)) {
+	ClearArray(g_hWitchInfo);
+	g_iWitchIndex = -1;
+}
+
+Action OnWitchCreated(Handle hTimer, int iEnt)
+{
+	if (!IsWitch(iEnt)) {
 		return Plugin_Continue;
 	}
 
-	bool bIsSecondHalfOfRound = InSecondHalfOfRound();
-
-	if (!bIsSecondHalfOfRound)
+	if (!InSecondHalfOfRound())
 	{
-		GetEntPropVector(iWitchId, Prop_Send, "m_angRotation", g_vWitchRotation);
-		GetEntPropVector(iWitchId, Prop_Send, "m_vecOrigin", g_vWitchOrigin);
-		g_bWitchSpawnedInFirstHalfOfRound = true;
+		E_WitchInfo eWitchInfo;
+
+		GetEntPropVector(iEnt, Prop_Send, "m_vecOrigin", eWitchInfo.vOrigin);
+		GetEntPropVector(iEnt, Prop_Send, "m_angRotation", eWitchInfo.vRotation);
+
+		PushArrayArray(g_hWitchInfo, eWitchInfo, sizeof(eWitchInfo));
 	}
 
-	if (bIsSecondHalfOfRound && g_bWitchSpawnedInFirstHalfOfRound) {
-		TeleportEntity(iWitchId, g_vWitchOrigin, g_vWitchRotation, NULL_VECTOR);
+	else
+	{
+		g_iWitchIndex ++;
+
+		if (g_iWitchIndex < GetArraySize(g_hWitchInfo))
+		{
+			E_WitchInfo eWitchInfo;
+
+			GetArrayArray(g_hWitchInfo, g_iWitchIndex, eWitchInfo, sizeof(eWitchInfo));
+
+			TeleportEntity(iEnt, eWitchInfo.vOrigin, eWitchInfo.vRotation, NULL_VECTOR);
+		}
 	}
+
+	CreateTimer(1.0, OnWitchCreatedPost, iEnt, TIMER_FLAG_NO_MAPCHANGE);
+
+	return Plugin_Continue;
+}
+
+Action OnWitchCreatedPost(Handle hTimer, int iEnt)
+{
+	if (!IsWitch(iEnt)) {
+		return Plugin_Continue;
+	}
+
+	SDKUnhook(iEnt, SDKHook_OnTakeDamage, OnTakePropDamage);
 
 	return Plugin_Continue;
 }
@@ -139,30 +135,19 @@ bool InSecondHalfOfRound() {
 }
 
 /**
- * Is the game mode versus.
- *
- * @param sGameMode         A string containing the name of the game mode.
- *
- * @return                  Returns true if versus, otherwise false.
- */
-bool IsVersusMode(const char[] sGameMode) {
-	return (StrEqual(sGameMode, GAMEMODE_VERSUS, false) || StrEqual(sGameMode, GAMEMODE_VERSUS_REALISM, false));
-}
-
-/**
  * Is entity witch.
  *
- * @param iWitchId          Witch Index.
+ * @param iEnt              Witch Index.
  *
  * @return                  Returns true if valid witch, otherwise false.
  */
-bool IsWitch(int iWitchId)
+bool IsWitch(int iEnt)
 {
-	if (iWitchId > 0 && IsValidEdict(iWitchId) && IsValidEntity(iWitchId))
+	if (iEnt > MaxClients && IsValidEdict(iEnt) && IsValidEntity(iEnt))
 	{
-		char classname[32];
+		char sClassName[32];
 
-		if (GetEdictClassname(iWitchId, classname, sizeof(classname)) && StrEqual(classname, "witch")) {
+		if (GetEdictClassname(iEnt, sClassName, sizeof(sClassName)) && StrEqual(sClassName, ssClassName_WITCH)) {
 			return true;
 		}
 	}
