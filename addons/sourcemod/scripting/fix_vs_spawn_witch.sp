@@ -6,17 +6,16 @@
 #include <sdktools>
 
 
-public Plugin myinfo =
-{
+public Plugin myinfo = {
 	name = "FixVersusSpawnWitch",
 	author = "TouchMe",
-	description = "The plugin corrects the position of the witch",
-	version = "build_0003",
+	description = "In the second round, the witch always takes the position of the first round witch",
+	version = "build_0004",
 	url = "https://github.com/TouchMe-Inc/l4d2_fix_vs_spawn_witch"
 };
 
 
-#define ssClassName_WITCH "witch"
+#define SI_CLASS_WITCH "witch"
 
 
 Handle g_hWitchInfo = null;
@@ -54,14 +53,20 @@ public void OnPluginStart()
 	g_hWitchInfo = CreateArray(sizeof(E_WitchInfo));
 }
 
-public void OnEntityCreated(int iEnt, const char[] ssClassName)
+public void OnEntityCreated(int iEnt, const char[] sClassName)
 {
-	if (iEnt > MaxClients && IsValidEntity(iEnt) && StrEqual(ssClassName, ssClassName_WITCH))
+	if (iEnt > MaxClients && IsValidEntity(iEnt) && StrEqual(sClassName, SI_CLASS_WITCH))
 	{
 		SDKHook(iEnt, SDKHook_OnTakeDamage, OnTakePropDamage);
 
-		CreateTimer(0.1, OnWitchCreated, iEnt, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(0.1, OnWitchCreated, EntIndexToEntRef(iEnt), TIMER_FLAG_NO_MAPCHANGE);
 	}
+}
+
+public void OnMapStart()
+{
+	ClearArray(g_hWitchInfo);
+	g_iWitchIndex = -1;
 }
 
 Action OnTakePropDamage(int iVictim, int &iAttacker, int &iInflictor, float &fDamage, int &iDamageType)
@@ -73,14 +78,10 @@ Action OnTakePropDamage(int iVictim, int &iAttacker, int &iInflictor, float &fDa
 	return Plugin_Continue;
 }
 
-public void OnMapStart()
+Action OnWitchCreated(Handle hTimer, int iEntRef)
 {
-	ClearArray(g_hWitchInfo);
-	g_iWitchIndex = -1;
-}
+	int iEnt = EntRefToEntIndex(iEntRef);
 
-Action OnWitchCreated(Handle hTimer, int iEnt)
-{
 	if (!IsWitch(iEnt)) {
 		return Plugin_Continue;
 	}
@@ -109,13 +110,15 @@ Action OnWitchCreated(Handle hTimer, int iEnt)
 		}
 	}
 
-	CreateTimer(1.0, OnWitchCreatedPost, iEnt, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(1.0, OnWitchCreatedPost, EntIndexToEntRef(iEnt), TIMER_FLAG_NO_MAPCHANGE);
 
 	return Plugin_Continue;
 }
 
-Action OnWitchCreatedPost(Handle hTimer, int iEnt)
+Action OnWitchCreatedPost(Handle hTimer, int iEntRef)
 {
+	int iEnt = EntRefToEntIndex(iEntRef);
+
 	if (!IsWitch(iEnt)) {
 		return Plugin_Continue;
 	}
@@ -147,7 +150,7 @@ bool IsWitch(int iEnt)
 	{
 		char sClassName[32];
 
-		if (GetEdictClassname(iEnt, sClassName, sizeof(sClassName)) && StrEqual(sClassName, ssClassName_WITCH)) {
+		if (GetEdictClassname(iEnt, sClassName, sizeof(sClassName)) && StrEqual(sClassName, SI_CLASS_WITCH)) {
 			return true;
 		}
 	}
